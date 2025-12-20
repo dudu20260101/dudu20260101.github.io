@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>国际象棋 - 国际版</title>
+    <style>
+        :root {
+            --bg-color: #f0f0f0;
+            --text-color: #333;
+            --board-border: #8b4513;
+            --light-square: #f0d9b5;
+            --dark-square: #b58863;
+            --button-bg: #4CAF50;
+            --button-hover: #45a049;
+            --input-bg: #fff;
+            --input-border: #ccc;
+            --panel-bg: #fff;
+            --piece-library-bg: #fdf6e3;
+            --selected-color: rgba(255, 255, 0, 0.6); /* Yellow for selected piece */
+            --possible-move-color: rgba(0, 0, 0, 0.2); /* Dark spot for possible moves */
+            --last-move-from-color: rgba(244, 67, 54, 0.5); /* Semi-transparent red */
+            --last-move-to-color: rgba(76, 175, 80, 0.5); /* Semi-transparent green */
+            --turn-indicator-white-bg: #ffffff;
+            --turn-indicator-black-bg: #4a4a4a;
+            --delete-button-bg: #f44336;
+            --delete-button-hover: #d32f2f;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #121212;
+            --text-color: #e0e0e0;
+            --board-border: #5a3825;
+            --light-square: #b58863;
+            --dark-square: #f0d9b5;
+            --button-bg: #5a8f5e;
+            --button-hover: #4e7f52;
+            --input-bg: #2e2e2e;
+            --input-border: #555;
+            --panel-bg: #1e1e1e;
+            --piece-library-bg: #2b2b2b;
+            --selected-color: rgba(255, 255, 0, 0.5);
+            --possible-move-color: rgba(255, 255, 255, 0.2); /* Light spot for dark theme */
+            --last-move-from-color: rgba(244, 67, 54, 0.6);
+            --last-move-to-color: rgba(76, 175, 80, 0.6);
+            --turn-indicator-white-bg: #f0f0f0;
+            --turn-indicator-black-bg: #e0e0e0;
+            --delete-button-bg: #c62828;
+            --delete-button-hover: #b71c1c;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .top-right-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 10px;
+        }
+
+        .theme-toggle {
+            background: none;
+            border: 2px solid var(--text-color);
+            color: var(--text-color);
+            padding: 5px 10px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        #messagePopup {
+            position: relative;
+            background-color: var(--panel-bg);
+            padding: 10px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            font-size: 15px;
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            border: 1px solid var(--input-border);
+            white-space: nowrap;
+        }
+        
+        #messagePopup.show {
+            display: block;
+            opacity: 1;
+        }
+
+        .main-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 1200px;
+            gap: 20px;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            width: 100%;
+        }
+
+        .controls input, .controls button {
+            padding: 10px 15px;
+            border-radius: 5px;
+            border: 1px solid var(--input-border);
+            font-size: 16px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .controls input {
+            background-color: var(--input-bg);
+            color: var(--text-color);
+        }
+
+        .controls button {
+            background-color: var(--button-bg);
+            color: white;
+            cursor: pointer;
+            border: none;
+        }
+
+        .controls button:hover {
+            background-color: var(--button-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        #turn-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 10px 20px;
+            background-color: var(--panel-bg);
+            border: 2px solid var(--board-border);
+            border-radius: 8px;
+            cursor: pointer;
+            color: var(--text-color);
+            font-weight: bold;
+            transition: background-color 0.4s ease, color 0.4s ease, transform 0.2s, box-shadow 0.2s;
+        }
+
+        #turn-indicator:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        #turn-indicator .piece-icon {
+            font-size: 1.5em;
+            line-height: 1;
+        }
+        
+        #turn-indicator.white {
+             background-color: var(--turn-indicator-white-bg);
+             color: #333;
+             border-color: #ccc;
+        }
+        
+        #turn-indicator.black {
+            background-color: var(--turn-indicator-black-bg);
+            color: #f0f0f0;
+        }
+        
+        .board-and-library-container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 30px;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+        
+        .board-base-container {
+            width: min(90vw, 90vh);
+            container-type: inline-size; 
+        }
+        
+        .board-wrapper {
+            width: 100cqw;
+            aspect-ratio: 1 / 1;
+            border: calc(1cqw * 1.25) solid var(--board-border);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            padding: 0;
+            display: grid;
+        }
+
+        #chessboard {
+            grid-column: 1 / -1;
+            grid-row: 1 / -1;
+            width: 100%;
+            height: 100%;
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+            font-size: calc(1cqw * 12.5);
+        }
+
+        .square {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            cursor: pointer;
+            position: relative;
+            transition: background-color 0.2s;
+            font-size: 0.8em; 
+        }
+        
+        /* --- MODIFIED & NEW: Highlight Styles --- */
+        .square.selected {
+            /* The yellow glow is handled by the background color now */
+            background-color: var(--selected-color) !important;
+        }
+
+        .square.possible-move {
+            /* Add a visual indicator for possible moves */
+            background-image: radial-gradient(circle, var(--possible-move-color) 20%, transparent 20%);
+        }
+        
+        .square.last-move-from {
+            background-color: var(--last-move-from-color) !important;
+        }
+        
+        .square.last-move-to {
+            background-color: var(--last-move-to-color) !important;
+        }
+        /* --- END NEW --- */
+
+        #piece-library {
+            display: none;
+            background-color: var(--piece-library-bg);
+            border: 2px solid var(--board-border);
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            margin-top: 10px;
+        }
+
+        #piece-library h3 {
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .library-pieces {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .library-piece {
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--light-square);
+            border: 1px solid var(--board-border);
+            cursor: pointer;
+            font-size: 40px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .library-piece:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        }
+        
+        .library-piece.selected {
+            box-shadow: 0 0 10px 3px var(--selected-color);
+        }
+        
+        .library-delete-piece {
+            grid-column: 1 / -1;
+            width: 100%;
+            max-width: 60px;
+            height: 60px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--delete-button-bg);
+            border: 1px solid var(--board-border);
+            cursor: pointer;
+            font-size: 40px;
+            color: white;
+            transition: transform 0.2s, box-shadow 0.2s, background-color 0.2s;
+        }
+        
+        .library-delete-piece:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+            background-color: var(--delete-button-hover);
+        }
+
+        .library-delete-piece.selected {
+             box-shadow: 0 0 10px 3px rgba(255, 0, 0, 0.7);
+        }
+        
+        @media (max-width: 768px) {
+            .board-base-container {
+                width: 95vw;
+            }
+            .top-right-controls {
+                top: 10px;
+                right: 10px;
+            }
+            .controls {
+                flex-direction: column;
+                align-items: center;
+            }
+            .controls input, .controls button {
+                width: 90%;
+            }
+        }
+    </style>
+</head>
+<body data-theme="light">
+    <div class="top-right-controls">
+        <div id="messagePopup" class="message-popup"></div>
+        <button class="theme-toggle" onclick="toggleTheme()">切换主题</button>
+    </div>
+
+    <div class="main-container">
+        <div class="controls">
+            <button onclick="resetBoard()">重置</button>
+            <input type="text" id="redeemCodeInput" placeholder="输入兑换码">
+            <button onclick="redeemCode()">兑换</button>
+            <button onclick="recharge()">充值</button>
+            
+            <button id="turn-indicator" onclick="switchTurn()">
+                <span class="piece-icon"></span>
+                <span class="turn-text"></span>
+            </button>
+        </div>
+
+        <div class="board-and-library-container">
+            <div class="board-base-container">
+                <div class="board-wrapper">
+                    <div id="chessboard"></div>
+                </div>
+            </div>
+            
+            <div id="piece-library">
+                <h3>棋子库</h3>
+                <div class="library-pieces"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const initialBoardState = [
+            ['♜', '♞', '♝', '♛', '♚', '♝', '♞', '♜'],
+            ['♟', '♟', '♟', '♟', '♟', '♟', '♟', '♟'],
+            [null, null, null, null, null, null, null, null],
+            [null, null, null, null, null, null, null, null],
+            [null, null, null, null, null, null, null, null],
+            [null, null, null, null, null, null, null, null],
+            ['♙', '♙', '♙', '♙', '♙', '♙', '♙', '♙'],
+            ['♖', '♘', '♗', '♕', '♔', '♗', '♘', '♖']
+        ];
+        
+        let boardState = JSON.parse(JSON.stringify(initialBoardState));
+        let currentTurn = 'white';
+        let selectedSquare = null;
+        let selectedLibraryPiece = null;
+        // --- NEW: State to track the last move ---
+        let lastMoveFrom = null;
+        let lastMoveTo = null;
+
+        const chessboard = document.getElementById('chessboard');
+        const messagePopup = document.getElementById('messagePopup');
+        const turnIndicator = document.getElementById('turn-indicator');
+
+        function isWhite(piece) { return piece && '♔♕♖♗♘♙'.includes(piece); }
+        function isBlack(piece) { return piece && '♚♛♜♝♞♟'.includes(piece); }
+        function isPiece(piece) { return piece !== null; }
+        
+        function showMessage(text) {
+            messagePopup.textContent = text;
+            messagePopup.classList.add('show');
+            if (messagePopup.hideTimeout) { clearTimeout(messagePopup.hideTimeout); }
+            messagePopup.hideTimeout = setTimeout(() => { messagePopup.classList.remove('show'); }, 3000);
+        }
+
+        function updateTurnIndicator() {
+            const iconElement = turnIndicator.querySelector('.piece-icon');
+            const textElement = turnIndicator.querySelector('.turn-text');
+            if (currentTurn === 'white') { turnIndicator.classList.remove('black'); turnIndicator.classList.add('white'); iconElement.textContent = '♔'; textElement.textContent = '白方回合'; }
+            else { turnIndicator.classList.remove('white'); turnIndicator.classList.add('black'); iconElement.textContent = '♚'; textElement.textContent = '黑方回合'; }
+        }
+
+        function switchTurn() { currentTurn = currentTurn === 'white' ? 'black' : 'white'; clearSelection(); updateTurnIndicator(); renderBoard(); showMessage(`已切换到${currentTurn === 'white' ? '白方' : '黑方'}回合`); }
+        function toggleTheme() { const body = document.body; body.setAttribute('data-theme', body.getAttribute('data-theme') === 'light' ? 'dark' : 'light'); }
+        
+        function isValidMove(piece, from, to) { /* ... unchanged ... */
+            const [fromR, fromC] = from; const [toR, toC] = to;
+            const targetPiece = boardState[toR][toC];
+            if (isWhite(piece) && isWhite(targetPiece)) return false;
+            if (isBlack(piece) && isBlack(targetPiece)) return false;
+            const rDiff = toR - fromR; const cDiff = Math.abs(toC - fromC);
+            switch (piece) {
+                case '♙': if (cDiff === 0 && !isPiece(targetPiece)) { if (rDiff === -1) return true; if (fromR === 6 && rDiff === -2 && !isPiece(boardState[5][fromC])) return true; } if (cDiff === 1 && rDiff === -1 && isBlack(targetPiece)) return true; return false;
+                case '♟': if (cDiff === 0 && !isPiece(targetPiece)) { if (rDiff === 1) return true; if (fromR === 1 && rDiff === 2 && !isPiece(boardState[2][fromC])) return true; } if (cDiff === 1 && rDiff === 1 && isWhite(targetPiece)) return true; return false;
+                case '♖': case '♜': if (rDiff === 0 || cDiff === 0) return isPathClear(from, to); return false;
+                case '♗': case '♝': if (Math.abs(rDiff) === cDiff) return isPathClear(from, to); return false;
+                case '♕': case '♛': if (rDiff === 0 || cDiff === 0 || Math.abs(rDiff) === cDiff) return isPathClear(from, to); return false;
+                case '♘': case '♞': return (Math.abs(rDiff) === 2 && cDiff === 1) || (Math.abs(rDiff) === 1 && cDiff === 2);
+                case '♔': case '♚': return Math.abs(rDiff) <= 1 && cDiff <= 1;
+            } return false;
+        }
+        function isPathClear(from, to) { /* ... unchanged ... */
+            const [fromR, fromC] = from; const [toR, toC] = to;
+            const rStep = toR > fromR ? 1 : toR < fromR ? -1 : 0;
+            const cStep = toC > fromC ? 1 : toC < fromC ? -1 : 0;
+            let r = fromR + rStep; let c = fromC + cStep;
+            while (r !== toR || c !== toC) { if (isPiece(boardState[r][c])) return false; r += rStep; c += cStep; } return true;
+        }
+        
+        // --- MODIFIED: renderBoard to handle all highlights ---
+        function renderBoard() {
+            chessboard.innerHTML = '';
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    const square = document.createElement('div');
+                    square.classList.add('square');
+                    square.dataset.row = r;
+                    square.dataset.col = c;
+                    
+                    const isLight = (r + c) % 2 === 0;
+                    square.style.backgroundColor = isLight ? 'var(--light-square)' : 'var(--dark-square)';
+
+                    const piece = boardState[r][c];
+                    if (piece) {
+                        square.textContent = piece;
+                        square.dataset.pieceType = piece;
+                    }
+                    
+                    // Apply highlights based on game state
+                    if (selectedSquare && selectedSquare.row === r && selectedSquare.col === c) {
+                        square.classList.add('selected');
+                    }
+                    
+                    // Show possible moves for the selected piece
+                    if (selectedSquare) {
+                        const from = [selectedSquare.row, selectedSquare.col];
+                        const to = [r, c];
+                        if (isValidMove(selectedSquare.piece, from, to)) {
+                            square.classList.add('possible-move');
+                        }
+                    }
+
+                    // Show the last move
+                    if (lastMoveFrom && lastMoveFrom.row === r && lastMoveFrom.col === c) {
+                        square.classList.add('last-move-from');
+                    }
+                    if (lastMoveTo && lastMoveTo.row === r && lastMoveTo.col === c) {
+                        square.classList.add('last-move-to');
+                    }
+
+                    square.addEventListener('click', handleSquareClick);
+                    chessboard.appendChild(square);
+                }
+            }
+        }
+        // --- END MODIFIED ---
+        
+        function handleSquareClick(e) {
+            const clickedSquare = e.target; 
+            const row = parseInt(clickedSquare.dataset.row); 
+            const col = parseInt(clickedSquare.dataset.col); 
+            
+            if (selectedLibraryPiece) { /* ... unchanged ... */
+                const targetPiece = boardState[row][col];
+                if (selectedLibraryPiece === 'DELETE') {
+                    if (isPiece(targetPiece)) { boardState[row][col] = null; showMessage("棋子已删除"); }
+                    else { showMessage("该格子上没有棋子"); }
+                    clearSelection(); renderBoard(); return;
+                }
+                const isPlacingWhite = isWhite(selectedLibraryPiece);
+                if (isPlacingWhite && isWhite(targetPiece)) { showMessage("不能覆盖己方棋子!"); clearSelection(); return; }
+                if (!isPlacingWhite && isBlack(targetPiece)) { showMessage("不能覆盖己方棋子!"); clearSelection(); return; }
+                boardState[row][col] = selectedLibraryPiece; showMessage("棋子已放置");
+                clearSelection(); renderBoard(); return;
+            }
+
+            const piece = boardState[row][col];
+            if (selectedSquare) {
+                const from = [selectedSquare.row, selectedSquare.col]; const to = [row, col];
+                if (from[0] === to[0] && from[1] === to[1]) { clearSelection(); renderBoard(); }
+                else if (isValidMove(selectedSquare.piece, from, to)) {
+                    // --- NEW: Record the move before updating the board ---
+                    lastMoveFrom = { row: from[0], col: from[1] };
+                    lastMoveTo = { row: to[0], col: to[1] };
+                    // --- END NEW ---
+
+                    boardState[to[0]][to[1]] = selectedSquare.piece;
+                    boardState[from[0]][from[1]] = null;
+                    currentTurn = currentTurn === 'white' ? 'black' : 'white';
+                    clearSelection();
+                    renderBoard();
+                    updateTurnIndicator();
+                } else {
+                    if (piece && isItMyTurn(piece)) { selectPiece(row, col, piece); renderBoard(); }
+                    else { showMessage("无效的移动！"); clearSelection(); renderBoard(); }
+                }
+            } else { if (piece && isItMyTurn(piece)) { selectPiece(row, col, piece); renderBoard(); } }
+        }
+
+        function isItMyTurn(piece) { return (isWhite(piece) && currentTurn === 'white') || (isBlack(piece) && currentTurn === 'black'); }
+        function selectPiece(row, col, piece) { clearSelection(); selectedSquare = { row, col, piece }; }
+        
+        // --- MODIFIED: clearSelection to reset move history ---
+        function clearSelection() {
+            selectedSquare = null;
+            selectedLibraryPiece = null;
+            // When selecting a new piece from the library or making a move, the old move hints are no longer needed
+            document.querySelectorAll('.square.selected, .library-piece.selected, .library-delete-piece.selected').forEach(el => el.classList.remove('selected'));
+        }
+        // --- END MODIFIED ---
+        
+        function resetBoard() { 
+            boardState = JSON.parse(JSON.stringify(initialBoardState)); 
+            currentTurn = 'white';
+            // --- NEW: Clear move history on reset ---
+            lastMoveFrom = null;
+            lastMoveTo = null;
+            // --- END NEW ---
+            clearSelection(); 
+            renderBoard(); 
+            updateTurnIndicator(); 
+        }
+
+        async function recharge() { try { const response = await fetch('https://ipapi.co/json/'); if (!response.ok) throw new Error("Network error."); const data = await response.json(); showMessage(data.country === 'US' ? "连接错误" : "无效的指令：400"); } catch (error) { showMessage("无效的指令：400"); } }
+        function redeemCode() { const code = document.getElementById('redeemCodeInput').value; if (code === '阿现') { const library = document.getElementById('piece-library'); library.style.display = 'block'; renderPieceLibrary(); showMessage("兑换成功！棋子库已开启。"); } else { showMessage("无效的兑换码"); } }
+        
+        function renderPieceLibrary() {
+            const container = document.querySelector('.library-pieces'); container.innerHTML = '';
+            const allPieces = '♔♕♖♗♘♙♚♛♜♝♞♟';
+            allPieces.split('').forEach(piece => {
+                const pieceDiv = document.createElement('div'); pieceDiv.classList.add('library-piece'); pieceDiv.textContent = piece;
+                pieceDiv.addEventListener('click', () => { clearSelection(); selectedLibraryPiece = piece; pieceDiv.classList.add('selected'); });
+                container.appendChild(pieceDiv);
+            });
+            const deleteDiv = document.createElement('div'); deleteDiv.classList.add('library-delete-piece'); deleteDiv.textContent = '×'; deleteDiv.title = "删除棋子";
+            deleteDiv.addEventListener('click', () => { clearSelection(); selectedLibraryPiece = 'DELETE'; deleteDiv.classList.add('selected'); });
+            container.appendChild(deleteDiv);
+        }
+
+        // --- Initialization ---
+        updateTurnIndicator();
+        renderBoard();
+    </script>
+</body>
+</html>
