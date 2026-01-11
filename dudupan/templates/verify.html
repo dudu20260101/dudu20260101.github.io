@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>安全验证</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="verify-container">
+    <div class="card verify-card">
+        <span class="lock-icon">🔒</span>
+        <h2>访问受限</h2>
+        <p>文件 <strong>{{ filename }}</strong> 需要提取码</p>
+        
+        {% if error %}
+        <div class="error-msg">{{ error }}</div>
+        {% endif %}
+
+        <form method="POST">
+            <div class="form-group">
+                <input type="text" name="code" placeholder="请输入提取码" required autofocus autocomplete="off" style="text-align: center; letter-spacing: 2px; font-size: 1.2em;">
+            </div>
+            <button type="submit">解锁并下载 ⬇️</button>
+        </form>
+        
+        <div style="margin-top: 20px;">
+            <a href="/" style="color: #999; text-decoration: none; font-size: 0.9em;">← 返回首页</a>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
