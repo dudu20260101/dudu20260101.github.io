@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <!-- 确保页面在移动设备上正确缩放，宽度等于设备宽度，初始缩放比例为1.0 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI对话助手 - 实时思考过程</title>
+    <style>
+        /* --- 全局样式重置与基础设置 --- */
+        * {
+            /* 清除所有元素的外边距和内边距，为自定义布局提供统一的基础 */
+            margin: 0;
+            padding: 0;
+            /* 盒模型设置为 border-box，意味着元素的宽度和高度包含内边距和边框，简化布局计算 */
+            box-sizing: border-box;
+        }
+        
+        body {
+            /* 使用系统字体栈，优先选择 'Segoe UI' (Windows), 'Tahoma', 'Geneva', 'Verdana' 等，确保跨平台一致性 */
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            /* 设置页面背景为深色渐变，营造现代感 */
+            background: linear-gradient(135deg, #1a1f2e 0%, #2d3748 100%);
+            /* 最小高度为视窗高度，保证背景充满整个屏幕 */
+            min-height: 100vh;
+            /* 使用 Flexbox 居中聊天容器 */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            /* 为页面主体添加一些内边距，防止内容紧贴屏幕边缘 */
+            padding: 20px;
+            /* 设置默认文字颜色为浅灰色 */
+            color: #e2e8f0;
+        }
+        
+        /* --- 主聊天容器样式 --- */
+        .chat-container {
+            width: 100%;
+            /* 设置最大宽度，防止在宽屏显示器上过宽 */
+            max-width: 1000px;
+            height: 750px; /* 固定高度，适用于桌面端 */
+            background: #2d3748; /* 深灰色背景，与页面背景形成层次感 */
+            border-radius: 16px; /* 大圆角，营造柔和、现代的视觉风格 */
+            /* 添加阴影效果，增强容器的立体感 */
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            /* 使用 Flexbox 垂直布局内部元素（头部、消息区、输入区） */
+            display: flex;
+            flex-direction: column;
+            /* 隐藏溢出内容，防止内部元素（如长消息）破坏容器布局 */
+            overflow: hidden;
+            /* 添加一个与背景色相近但略亮的边框，增强边界感 */
+            border: 1px solid #4a5568;
+        }
+        
+        /* --- 聊天头部样式 --- */
+        .chat-header {
+            background: #1a202c; /* 更深的背景色，与消息区形成区分 */
+            color: white;
+            padding: 20px;
+            text-align: center;
+            position: relative; /* 设置为相对定位，以便内部的绝对定位元素可以相对于它定位 */
+            border-bottom: 1px solid #4a5568; /* 底部边框，将头部与消息区分隔开 */
+        }
+        
+        .chat-header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 5px;
+            /* 使用渐变色作为标题文字，增加视觉吸引力 */
+            background: linear-gradient(90deg, #4299e1, #38b2ac);
+            /* 背景裁剪到文字，并设置文字填充色为透明，从而显示渐变背景 */
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .chat-header .subtitle {
+            font-size: 14px;
+            opacity: 0.8; /* 略微透明，使其不那么突出 */
+            color: #a0aec0;
+        }
+        
+        /* --- 模型选择器样式 --- */
+        .model-selector {
+            position: absolute; /* 绝对定位，脱离文档流 */
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%); /* 垂直居中 */
+            display: flex;
+            align-items: center;
+            gap: 10px; /* Flexbox 子元素之间的间距 */
+        }
+        
+        .model-selector select {
+            padding: 6px 12px;
+            border: 1px solid #4a5568;
+            border-radius: 6px;
+            background: #2d3748;
+            color: #e2e8f0;
+            font-size: 12px;
+            outline: none; /* 移除默认的点击轮廓 */
+            cursor: pointer; /* 鼠标悬停时显示为指针 */
+        }
+        
+        /* --- 控制面板样式 --- */
+        .control-panel {
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .control-button {
+            padding: 6px 12px;
+            background: #4a5568;
+            color: #e2e8f0;
+            border: 1px solid #718096;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s; /* 为所有可变化的属性添加平滑过渡效果 */
+        }
+        
+        .control-button:hover {
+            background: #5a6578; /* 鼠标悬停时背景变亮 */
+        }
+        
+        .control-button:disabled {
+            opacity: 0.5; /* 禁用时降低不透明度 */
+            cursor: not-allowed; /* 禁用鼠标指针 */
+        }
+        
+        /* --- API状态指示器样式 --- */
+        .api-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            margin-right: 10px;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%; /* 圆形状态点 */
+            background: #48bb78; /* 默认绿色，表示连接正常 */
+        }
+        
+        .status-dot.connecting {
+            background: #ed8936; /* 橙色，表示连接中 */
+        }
+        
+        .status-dot.error {
+            background: #f56565; /* 红色，表示连接错误 */
+        }
+        
+        /* --- 消息显示区域样式 --- */
+        .chat-messages {
+            flex: 1; /* 占据剩余的所有垂直空间 */
+            padding: 20px;
+            overflow-y: auto; /* 垂直方向可滚动，当消息超出容器高度时显示滚动条 */
+            display: flex;
+            flex-direction: column; /* 垂直排列消息 */
+            gap: 15px; /* 消息之间的垂直间距 */
+            background: #2d3748;
+        }
+        
+        /* --- 单条消息通用样式 --- */
+        .message {
+            max-width: 80%; /* 最大宽度为80%，避免过宽 */
+            padding: 12px 16px;
+            border-radius: 12px; /* 气泡状圆角 */
+            line-height: 1.5;
+            animation: fadeIn 0.3s ease-in; /* 消息出现时带有淡入动画 */
+            position: relative; /* 为内部元素的定位提供参考 */
+        }
+        
+        /* --- 用户消息样式 --- */
+        .user-message {
+            align-self: flex-end; /* 右对齐 */
+            background: #4299e1; /* 蓝色背景 */
+            color: white;
+            border-bottom-right-radius: 4px; /* 右下角小圆角，模拟聊天气泡的尾部 */
+        }
+        
+        /* --- AI消息样式 --- */
+        .ai-message {
+            align-self: flex-start; /* 左对齐 */
+            background: #4a5568; /* 深灰色背景 */
+            color: #e2e8f0;
+            border-bottom-left-radius: 4px; /* 左下角小圆角 */
+            border: 1px solid #718096; /* 添加边框以增强区分度 */
+        }
+        
+        /* --- 思考过程容器样式 --- */
+        .thinking-container {
+            margin: 8px 0; /* 上下外边距，与消息内容隔开 */
+            border-radius: 8px;
+            overflow: hidden; /* 确保内部圆角生效 */
+            border: 1px solid #4a5568; /* 边框 */
+        }
+        
+        .thinking-header {
+            display: flex;
+            justify-content: space-between; /* 两端对齐 */
+            align-items: center;
+            padding: 8px 12px;
+            background: #2d3748;
+            border-bottom: 1px solid #4a5568;
+            font-size: 12px;
+            font-weight: 600;
+            color: #4299e1; /* 蓝色标题 */
+        }
+        
+        .thinking-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .thinking-action {
+            background: none;
+            border: none;
+            color: #a0aec0;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            transition: all 0.2s;
+        }
+        
+        .thinking-action:hover {
+            background: #4a5568; /* 鼠标悬停背景 */
+            color: #e2e8f0;
+        }
+        
+        .thinking-process {
+            background: #2d3748; /* 稍亮的背景色，与头部区分 */
+            padding: 12px;
+            font-size: 13px;
+            color: #a0aec0; /* 较暗的文字颜色，表示辅助信息 */
+            /* 保留空白符和换行，确保思考过程的格式正确显示 */
+            white-space: pre-wrap;
+            max-height: 200px; /* 最大高度，防止过长 */
+            overflow-y: auto; /* 可滚动 */
+        }
+        
+        .thinking-content {
+            line-height: 1.4; /* 行高 */
+        }
+        
+        /* --- 消息内容区域样式 --- */
+        .message-content {
+            white-space: pre-wrap; /* 保留换行和空格，但允许自动换行 */
+            word-wrap: break-word; /* 在长单词或URL处强制换行 */
+        }
+        
+        /* --- 流式内容样式 --- */
+        .streaming-content {
+            display: inline; /* 内联显示，与光标在同一行 */
+        }
+        
+        /* --- 打字光标样式 --- */
+        .streaming-cursor {
+            display: inline-block;
+            width: 8px;
+            height: 16px; /* 高度与字体大致相当 */
+            background: #4299e1; /* 蓝色光标 */
+            margin-left: 2px;
+            animation: blink 1s infinite; /* 应用闪烁动画 */
+            vertical-align: middle; /* 垂直居中对齐 */
+        }
+        
+        /* --- 输入区域样式 --- */
+        .chat-input {
+            padding: 20px;
+            background: #1a202c; /* 深色背景，与头部一致 */
+            border-top: 1px solid #4a5568; /* 顶部边框 */
+            display: flex;
+            gap: 10px;
+            align-items: flex-end; /* 底部对齐，使按钮和输入框底部平齐 */
+        }
+        
+        .input-container {
+            flex: 1; /* 占据剩余空间 */
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .chat-input textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #4a5568;
+            border-radius: 12px;
+            outline: none; /* 移除默认焦点轮廓 */
+            font-size: 14px;
+            font-family: inherit; /* 继承body的字体 */
+            resize: vertical; /* 只允许垂直方向调整大小 */
+            min-height: 44px; /* 最小高度 */
+            max-height: 120px; /* 最大高度，防止过高 */
+            transition: border-color 0.3s;
+            background: #2d3748;
+            color: #e2e8f0;
+        }
+        
+        .chat-input textarea:focus {
+            border-color: #4299e1; /* 聚焦时边框变蓝 */
+        }
+        
+        /* --- 输入控制栏（字符计数等）样式 --- */
+        .input-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            color: #a0aec0;
+        }
+        
+        /* --- 发送按钮样式 --- */
+        .send-button {
+            padding: 12px 24px;
+            background: #4299e1;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            min-width: 80px;
+            height: 44px; /* 固定高度，与输入框最小高度一致 */
+        }
+        
+        .send-button:hover {
+            background: #3182ce; /* 鼠标悬停时背景变深 */
+            transform: translateY(-1px); /* 轻微上移效果 */
+        }
+        
+        .send-button:disabled {
+            background: #4a5568; /* 禁用时变灰 */
+            cursor: not-allowed;
+            transform: none; /* 禁用时移除上移效果 */
+        }
+        
+        /* --- 发送按钮加载状态样式 --- */
+        .send-button.loading {
+            background: #4a5568;
+            position: relative;
+            overflow: hidden; /* 隐藏伪元素溢出部分 */
+        }
+        
+        /* 使用伪元素创建扫描光效果 */
+        .send-button.loading::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%; /* 初始位置在左侧外部 */
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            animation: loading 1.5s infinite; /* 应用扫描动画 */
+        }
+        
+        /* --- 正在输入指示器样式 --- */
+        .typing-indicator {
+            align-self: flex-start;
+            background: #4a5568;
+            padding: 12px 16px;
+            border-radius: 12px;
+            border-bottom-left-radius: 4px;
+            color: #a0aec0;
+            font-style: italic; /* 斜体 */
+            border: 1px solid #718096;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .typing-dots {
+            display: flex;
+            gap: 3px;
+        }
+        
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #a0aec0;
+            animation: typing 1.4s infinite ease-in-out; /* 应用跳动动画 */
+        }
+        
+        /* 为每个点设置不同的动画延迟，形成波浪效果 */
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        
+        /* --- 时间戳样式 --- */
+        .timestamp {
+            font-size: 11px;
+            opacity: 0.6;
+            margin-top: 5px;
+            text-align: right;
+        }
+        
+        .ai-timestamp {
+            text-align: left; /* AI消息的时间戳左对齐 */
+        }
+        
+        /* --- 错误消息样式 --- */
+        .error-message {
+            align-self: flex-start;
+            background: #fed7d7; /* 浅红色背景 */
+            color: #c53030; /* 深红色文字 */
+            padding: 12px 16px;
+            border-radius: 8px;
+            border-left: 4px solid #f56565; /* 左侧红色竖条，强调错误 */
+            font-size: 14px;
+        }
+        
+        /* --- 模型标签样式 --- */
+        .model-tag {
+            display: inline-block;
+            background: #4299e1;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            margin-left: 8px;
+            font-weight: 500;
+        }
+        
+        /* --- 系统消息样式（如“已切换模型”） --- */
+        .system-message {
+            align-self: center; /* 居中显示 */
+            background: #2d3748;
+            color: #a0aec0;
+            padding: 8px 16px;
+            border-radius: 20px; /* 胶囊形状 */
+            font-size: 12px;
+            border: 1px solid #4a5568;
+            max-width: 60%; /* 限制宽度 */
+            text-align: center;
+        }
+        
+        /* --- Toast提示框样式 --- */
+        .toast {
+            position: fixed; /* 固定在视窗底部 */
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%); /* 水平居中 */
+            background: #48bb78; /* 绿色背景，表示成功 */
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 1000; /* 高层级，确保在最上层 */
+            animation: slideUp 0.3s ease-out; /* 应用从下滑入动画 */
+        }
+        
+        /* --- 动画定义 --- */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px); /* 从下方10px处淡入 */
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; } /* 缩小并变淡 */
+            40% { transform: scale(1); opacity: 1; } /* 恢复原始大小和不透明度 */
+        }
+        
+        @keyframes loading {
+            0% { left: -100%; } /* 从左侧外部移动到右侧外部 */
+            100% { left: 100%; }
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; } /* 完全不透明 */
+            50% { opacity: 0; } /* 完全透明，形成闪烁效果 */
+        }
+        
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translate(-50%, 20px); /* 从下方20px处滑入 */
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, 0);
+            }
+        }
+        
+        /* --- 响应式设计：针对移动设备的样式调整 --- */
+        @media (max-width: 768px) {
+            .chat-container {
+                height: 100vh; /* 在移动设备上，聊天容器占满整个视窗高度 */
+                border-radius: 0; /* 移除圆角，全屏显示 */
+            }
+            
+            .message {
+                max-width: 90%; /* 在小屏幕上，消息宽度占比可以更大一些 */
+            }
+            
+            .chat-header {
+                padding: 15px; /* 减少内边距 */
+            }
+            
+            /* 将模型选择器和控制面板从绝对定位改为静态布局，垂直堆叠在头部 */
+            .model-selector {
+                position: static;
+                transform: none;
+                justify-content: center;
+                margin-top: 10px;
+            }
+            
+            .control-panel {
+                position: static;
+                transform: none;
+                justify-content: center;
+                margin-top: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 主聊天容器，包含头部、消息区和输入区 -->
+    <div class="chat-container">
+        <!-- 聊天头部，包含标题、模型选择器和控制面板 -->
+        <div class="chat-header">
+            <h1>🤖 AI对话助手</h1>
+            <div class="subtitle">实时思考过程 · 交互控制</div>
+            
+            <!-- 模型选择器 -->
+            <div class="model-selector">
+                <label for="modelSelect">选择模型：</label>
+                <select id="modelSelect">
+                    <option value="deepseek-v3.2">DeepSeek v3.2</option>
+                    <!-- "思考过程"模型通常会在响应中包含一个特殊的字段来展示其推理步骤 -->
+                    <option value="gpt-5.2">GPT 5.2(推荐)</option>
+                    <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+                    <option value="gemini-3-flash-preview">Gemini 3 Flash(推荐)</option>
+                    <option value="grok-3">Grok 3</option>
+                    <option value="claude-haiku-4-5-20251001">Claude 4.5(推荐)</option>
+                </select>
+            </div>
+            
+            <!-- 控制面板，包含API状态、暂停和清空按钮 -->
+            <div class="control-panel">
+                <div class="api-status">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span id="statusText">API连接正常</span>
+                </div>
+                <button class="control-button" id="pauseButton" disabled>暂停思考</button>
+                <button class="control-button" id="clearButton">清空对话</button>
+            </div>
+        </div>
+
+        <!-- 消息显示区域，用于承载用户消息和AI响应 -->
+        <div class="chat-messages" id="chatMessages">
+            <!-- 初始欢迎消息 -->
+            <div class="message ai-message">
+                <div class="message-content">
+                    您好！我是您的AI助手，支持多种大语言模型。请从左上角选择您想要使用的模型。
+                    <span class="model-tag">DeepSeek v3.2</span>
+                </div>
+                <!-- 初始时间戳将由JavaScript动态设置 -->
+                <div class="timestamp ai-timestamp" id="initialTimestamp"></div>
+            </div>
+        </div>
+
+        <!-- 聊天输入区域，包含文本框和发送按钮 -->
+        <div class="chat-input">
+            <div class="input-container">
+                <textarea id="messageInput" placeholder="输入您的消息..." maxlength="2000" rows="1"></textarea>
+                <div class="input-controls">
+                    <span id="charCount">0/2000</span>
+                    <span>按 Enter 发送，Shift + Enter 换行</span>
+                </div>
+            </div>
+            <button class="send-button" id="sendButton">发送</button>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * AIChat 类：封装整个聊天应用的逻辑。
+         * 使用 ES6 Class 的组织代码，提高可读性和可维护性。
+         */
+        class AIChat {
+            constructor() {
+                // --- 配置与常量 ---
+                // API密钥和端点，实际项目中应考虑安全存储，而非硬编码
+                this.apiKey = 'sk-SbzBhwSzB5sjOXZb9yNYnkeNE55e8EI4xRnZ2sWXSW2yDUtg';
+                this.apiUrl = 'https://deeprouter.top/v1/chat/completions';
+                // 默认选择的模型
+                this.currentModel = 'gpt-5.2';
+                
+                // --- DOM元素引用 ---
+                // 缓存常用的DOM元素，避免频繁查询，提高性能
+                this.chatMessages = document.getElementById('chatMessages');
+                this.messageInput = document.getElementById('messageInput');
+                this.sendButton = document.getElementById('sendButton');
+                this.modelSelect = document.getElementById('modelSelect');
+                this.pauseButton = document.getElementById('pauseButton');
+                this.clearButton = document.getElementById('clearButton');
+                this.statusDot = document.getElementById('statusDot');
+                this.statusText = document.getElementById('statusText');
+                this.charCount = document.getElementById('charCount');
+                this.initialTimestamp = document.getElementById('initialTimestamp');
+                
+                // --- 状态管理 ---
+                this.conversationHistory = []; // 存储对话历史，用于上下文感知
+                this.isGenerating = false; // 标记AI是否正在生成响应
+                this.isPaused = false; // 标记生成过程是否被暂停
+                this.currentReader = null; // 用于读取流的ReadableStreamDefaultReader实例
+                this.currentController = null; // 用于中止fetch请求的AbortController实例
+                
+                // --- 初始化 ---
+                this.setInitialTimestamp();
+                this.initEventListeners();
+                this.updateCharCount();
+            }
+            
+            /**
+             * 设置初始欢迎消息的时间戳
+             */
+            setInitialTimestamp() {
+                this.initialTimestamp.textContent = this.getCurrentTime();
+            }
+            
+            /**
+             * 获取当前时间字符串（HH:MM格式）
+             * @returns {string}
+             */
+            getCurrentTime() {
+                const now = new Date();
+                return now.getHours().toString().padStart(2, '0') + ':' + 
+                       now.getMinutes().toString().padStart(2, '0');
+            }
+            
+            /**
+             * 初始化所有事件监听器
+             */
+            initEventListeners() {
+                // 发送按钮点击事件
+                this.sendButton.addEventListener('click', () => this.sendMessage());
+                
+                // 模型选择器变更事件
+                this.modelSelect.addEventListener('change', (e) => {
+                    this.currentModel = e.target.value;
+                    // 在聊天区显示一条系统消息，告知用户模型已切换
+                    this.addSystemMessage(`已切换到模型：${e.target.options[e.target.selectedIndex].text}`);
+                });
+                
+                // 暂停/继续按钮点击事件
+                this.pauseButton.addEventListener('click', () => this.togglePause());
+                
+                // 清空对话按钮点击事件
+                this.clearButton.addEventListener('click', () => this.clearConversation());
+                
+                // 输入框内容变化事件
+                this.messageInput.addEventListener('input', () => {
+                    this.updateCharCount(); // 更新字符计数
+                    this.autoResize(); // 自动调整高度
+                    // 根据输入内容和生成状态动态禁用/启用发送按钮
+                    this.sendButton.disabled = this.messageInput.value.trim() === '' || this.isGenerating;
+                });
+                
+                // 输入框键盘事件
+                this.messageInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        if (e.shiftKey) {
+                            // 如果同时按下了Shift，则允许默认的换行行为
+                            return;
+                        }
+                        // 否则，阻止默认行为并发送消息
+                        e.preventDefault();
+                        this.sendMessage();
+                    }
+                });
+                
+                // 输入框粘贴事件
+                this.messageInput.addEventListener('paste', (e) => {
+                    // 粘贴后内容可能变化，使用setTimeout在DOM更新后执行调整
+                    setTimeout(() => {
+                        this.autoResize();
+                        this.updateCharCount();
+                    }, 0);
+                });
+            }
+            
+            /**
+             * 添加一条系统消息（如模型切换提示）
+             * @param {string} content - 消息内容
+             */
+            addSystemMessage(content) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'system-message';
+                
+                messageDiv.innerHTML = `
+                    <div>${this.escapeHtml(content)}</div>
+                `;
+                
+                this.chatMessages.appendChild(messageDiv);
+                this.scrollToBottom();
+            }
+            
+            /**
+             * 更新输入框下方的字符计数显示
+             */
+            updateCharCount() {
+                const count = this.messageInput.value.length;
+                this.charCount.textContent = `${count}/2000`;
+                // 当接近字符上限时，改变计数颜色以提示用户
+                this.charCount.style.color = count > 1800 ? '#fc8181' : '#a0aec0';
+            }
+            
+            /**
+             * 自动调整输入框的高度，以适应内容
+             */
+            autoResize() {
+                // 先将高度重置为auto，以便scrollHeight能正确计算内容高度
+                this.messageInput.style.height = 'auto';
+                // 设置新高度，但不能超过最大高度
+                this.messageInput.style.height = Math.min(this.messageInput.scrollHeight, 120) + 'px';
+            }
+            
+            /**
+             * 核心方法：发送用户消息并处理AI响应
+             */
+            async sendMessage() {
+                const message = this.messageInput.value.trim();
+                if (!message || this.isGenerating) return; // 防止空消息或重复发送
+                
+                // 1. 将用户消息添加到UI
+                this.addMessage(message, 'user');
+                this.messageInput.value = '';
+                this.updateCharCount();
+                this.autoResize();
+                
+                // 2. 更新UI状态，进入“生成中”状态
+                this.sendButton.disabled = true;
+                this.isGenerating = true;
+                this.isPaused = false;
+                this.pauseButton.disabled = false;
+                this.pauseButton.textContent = '暂停思考';
+                this.setAPIStatus('connecting', 'AI思考中...');
+                
+                try {
+                    // 3. 调用API并处理流式响应
+                    await this.callSiliconFlowAPIStream(message);
+                    this.setAPIStatus('connected', 'API连接正常');
+                } catch (error) {
+                    // 4. 错误处理：显示错误信息并更新API状态
+                    console.error('API调用失败:', error);
+                    this.showError('抱歉，AI暂时无法响应。请检查网络连接或稍后重试。错误信息：' + error.message);
+                    this.setAPIStatus('error', 'API连接失败');
+                } finally {
+                    // 5. 清理工作：无论成功与否，都要重置状态
+                    this.isGenerating = false;
+                    this.sendButton.disabled = false;
+                    this.pauseButton.disabled = true;
+                    this.messageInput.focus(); // 重新聚焦输入框，方便用户继续输入
+                }
+            }
+            
+            /**
+             * 调用SiliconFlow API并处理流式响应
+             * @param {string} userMessage - 用户输入的消息
+             */
+            async callSiliconFlowAPIStream(userMessage) {
+                // 构建请求消息体，包含历史对话以提供上下文
+                const messages = [
+                    ...this.conversationHistory,
+                    { role: 'user', content: userMessage }
+                ];
+                
+                const requestBody = {
+                    model: this.currentModel,
+                    messages: messages,
+                    max_tokens: 2000,
+                    temperature: 0.7,
+                    stream: true  // 关键：启用流式响应
+                };
+                
+                // 对于支持思考过程的模型，启用相关参数（注意：具体参数名需根据API文档调整）
+                if (this.currentModel.includes('Thinking') || this.currentModel.includes('R1')) {
+                    requestBody.thinking = {
+                        "type": "enabled"
+                    };
+                }
+                
+                // 使用AbortController来支持中止请求（例如，暂停功能）
+                this.currentController = new AbortController();
+                
+                const response = await fetch(this.apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${this.apiKey}`
+                    },
+                    body: JSON.stringify(requestBody),
+                    signal: this.currentController.signal
+                });
+                
+                if (!response.ok) {
+                    // 尝试解析错误信息，失败则使用默认HTTP错误
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`);
+                }
+                
+                // --- 准备UI容器 ---
+                // 创建AI消息的DOM容器
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message ai-message';
+                const modelTag = `<span class="model-tag">${this.getModelDisplayName()}</span>`;
+                
+                messageDiv.innerHTML = `
+                    <div class="message-content">
+                        <span class="streaming-content"></span> <!-- 用于接收流式内容 -->
+                        <span class="streaming-cursor"></span> <!-- 打字光标效果 -->
+                        ${modelTag}
+                    </div>
+                    <div class="timestamp ai-timestamp">${this.getCurrentTime()}</div>
+                `;
+                
+                this.chatMessages.appendChild(messageDiv);
+                this.scrollToBottom();
+                
+                const contentElement = messageDiv.querySelector('.streaming-content');
+                const cursorElement = messageDiv.querySelector('.streaming-cursor');
+                
+                // --- 处理流式数据 ---
+                this.currentReader = response.body.getReader();
+                const decoder = new TextDecoder(); // 用于将Uint8Array解码为字符串
+                let buffer = ''; // 缓存不完整的行数据
+                let thinkingContent = ''; // 累积思考过程内容
+                let isInThinking = false; // 标记是否正在接收思考过程
+                let finalContent = ''; // 累积最终回复内容
+                let thinkingElement = null; // 思考过程的DOM元素
+                
+                try {
+                    while (true) {
+                        // 检查是否暂停
+                        if (this.isPaused) {
+                            // 如果暂停，则循环等待，直到状态改变
+                            await new Promise(resolve => {
+                                const checkPause = () => {
+                                    if (!this.isPaused) {
+                                        resolve();
+                                    } else {
+                                        setTimeout(checkPause, 100); // 每100ms检查一次
+                                    }
+                                };
+                                checkPause();
+                            });
+                        }
+                        
+                        const { done, value } = await this.currentReader.read();
+                        if (done) break; // 流结束
+                        
+                        // 将新读取的数据解码并追加到缓冲区
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split('\n'); // 按行分割，因为SSE格式是按行传输的
+                        buffer = lines.pop() || ''; // 最后一个不完整的行保留在buffer中
+                        
+                        // 遍历每一行
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) { // Server-Sent Events (SSE) 格式
+                                const data = line.slice(6);
+                                if (data === '[DONE]') continue; // 结束标记
+                                
+                                try {
+                                    const parsed = JSON.parse(data);
+                                    const choice = parsed.choices[0];
+                                    
+                                    // 处理最终的文本内容
+                                    if (choice.delta && choice.delta.content) {
+                                        finalContent += choice.delta.content;
+                                        contentElement.textContent = finalContent;
+                                        this.scrollToBottom(); // 实时滚动到底部
+                                    }
+                                    
+                                    // 处理思考过程内容（如果API返回了该字段）
+                                    if (choice.delta && choice.delta.thinking) {
+                                        thinkingContent += choice.delta.thinking;
+                                        isInThinking = true;
+                                        
+                                        // 如果思考过程的DOM元素还未创建，则创建它
+                                        if (!thinkingElement) {
+                                            thinkingElement = this.createThinkingElement();
+                                            // 将思考过程容器插入到时间戳之前
+                                            messageDiv.insertBefore(thinkingElement, messageDiv.querySelector('.timestamp'));
+                                        }
+                                        
+                                        this.updateThinkingContent(thinkingElement, thinkingContent);
+                                    }
+                                    
+                                    // 检查思考过程是否结束
+                                    if (isInThinking && (!choice.delta || !choice.delta.thinking)) {
+                                        isInThinking = false;
+                                    }
+                                    
+                                } catch (e) {
+                                    console.error('解析流数据错误:', e);
+                                    // 可以考虑在这里添加UI错误提示，但通常解析错误可以忽略，继续处理下一块
+                                }
+                            }
+                        }
+                    }
+                    
+                    // --- 流结束后的处理 ---
+                    cursorElement.style.display = 'none'; // 隐藏光标
+                    
+                    // 将完整对话保存到历史记录中
+                    this.conversationHistory.push(
+                        { role: 'user', content: userMessage },
+                        { role: 'assistant', content: finalContent, thinking: thinkingContent }
+                    );
+                    
+                    // 限制历史记录长度，避免上下文过长
+                    if (this.conversationHistory.length > 10) {
+                        this.conversationHistory = this.conversationHistory.slice(-10);
+                    }
+                    
+                } catch (error) {
+                    // 如果是因为中止操作（如暂停）导致的错误，则不向上抛出
+                    if (error.name !== 'AbortError') {
+                        console.error('流处理错误:', error);
+                        throw error; // 其他错误则继续抛出，由外层catch处理
+                    }
+                } finally {
+                    // 清理流相关的实例
+                    this.currentReader = null;
+                    this.currentController = null;
+                }
+            }
+            
+            /**
+             * 创建并返回思考过程的DOM元素
+             * @returns {HTMLElement}
+             */
+            createThinkingElement() {
+                const thinkingContainer = document.createElement('div');
+                thinkingContainer.className = 'thinking-container';
+                
+                thinkingContainer.innerHTML = `
+                    <div class="thinking-header">
+                        <span>💭 AI思考过程</span>
+                        <div class="thinking-actions">
+                            <button class="thinking-action copy-thinking">复制</button>
+                            <button class="thinking-action toggle-thinking">收起</button>
+                        </div>
+                    </div>
+                    <div class="thinking-process">
+                        <div class="thinking-content"></div>
+                    </div>
+                `;
+                
+                // 为复制按钮添加事件监听
+                const copyButton = thinkingContainer.querySelector('.copy-thinking');
+                copyButton.addEventListener('click', () => {
+                    const thinkingContent = thinkingContainer.querySelector('.thinking-content').textContent;
+                    this.copyToClipboard(thinkingContent);
+                    this.showToast('思考过程已复制到剪贴板');
+                });
+                
+                // 为展开/收起按钮添加事件监听
+                const toggleButton = thinkingContainer.querySelector('.toggle-thinking');
+                const thinkingProcess = thinkingContainer.querySelector('.thinking-process');
+                toggleButton.addEventListener('click', () => {
+                    // 切换显示状态
+                    if (thinkingProcess.style.display === 'none') {
+                        thinkingProcess.style.display = 'block';
+                        toggleButton.textContent = '收起';
+                    } else {
+                        thinkingProcess.style.display = 'none';
+                        toggleButton.textContent = '展开';
+                    }
+                });
+                
+                return thinkingContainer;
+            }
+            
+            /**
+             * 更新思考过程内容并滚动到底部
+             * @param {HTMLElement} thinkingElement - 思考过程容器元素
+             * @param {string} content - 新增的思考内容
+             */
+            updateThinkingContent(thinkingElement, content) {
+                const thinkingContentElement = thinkingElement.querySelector('.thinking-content');
+                thinkingContentElement.textContent = content;
+                // 自动滚动到最新内容
+                thinkingElement.scrollTop = thinkingElement.scrollHeight;
+            }
+            
+            /**
+             * 切换暂停/继续状态
+             */
+            togglePause() {
+                if (this.isGenerating) {
+                    this.isPaused = !this.isPaused;
+                    this.pauseButton.textContent = this.isPaused ? '继续思考' : '暂停思考';
+                    
+                    // 当点击暂停时，我们中止当前的fetch请求
+                    if (this.isPaused && this.currentController) {
+                        this.currentController.abort();
+                    }
+                    // 注意：点击“继续”时，会重新发起一个新的API请求（在sendMessage的循环等待逻辑中实现）
+                    // 但目前的实现是中止后就无法真正“继续”，这是一个简化的实现。
+                    // 更复杂的实现可能需要在服务端支持会话恢复。
+                }
+            }
+            
+            /**
+             * 清空对话历史和UI
+             */
+            clearConversation() {
+                // 如果正在生成，先中止它
+                if (this.isGenerating && this.currentController) {
+                    this.currentController.abort();
+                }
+                
+                // 清空消息区UI
+                this.chatMessages.innerHTML = `
+                    <div class="message ai-message">
+                        <div class="message-content">
+                            对话已清空，请输入新的消息开始对话。
+                            <span class="model-tag">${this.getModelDisplayName()}</span>
+                        </div>
+                        <div class="timestamp ai-timestamp">${this.getCurrentTime()}</div>
+                    </div>
+                `;
+                
+                // 清空内存中的历史记录
+                this.conversationHistory = [];
+                // 更新对新初始时间戳的引用，以防后续代码需要
+                this.initialTimestamp = this.chatMessages.querySelector('.ai-timestamp');
+            }
+            
+            /**
+             * 将文本复制到剪贴板
+             * @param {string} text - 要复制的文本
+             */
+            copyToClipboard(text) {
+                // 优先使用现代的 Clipboard API
+                navigator.clipboard.writeText(text).catch(() => {
+                    // 降级方案：使用旧的 execCommand 方法
+                    const textArea = document.createElement('textarea');
+                    textArea.value = text;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                });
+            }
+            
+            /**
+             * 显示一个短暂的Toast提示
+             * @param {string} message - 提示信息
+             */
+            showToast(message) {
+                const toast = document.createElement('div');
+                toast.className = 'toast';
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                
+                // 2秒后自动移除
+                setTimeout(() => {
+                    document.body.removeChild(toast);
+                }, 2000);
+            }
+            
+            /**
+             * 获取当前模型的显示名称
+             * @returns {string}
+             */
+            getModelDisplayName() {
+                const modelNames = {
+                    'deepseek-ai/DeepSeek-V3': 'DeepSeek-V3',
+                    'deepseek-ai/DeepSeek-R1': 'DeepSeek-R1',
+                    'Qwen/Qwen3-VL-235B-A22B-Thinking': 'Qwen3-VL',
+                    'moonshotai/Kimi-K2-Thinking': 'Kimi-K2'
+                };
+                return modelNames[this.currentModel] || this.currentModel;
+            }
+            
+            /**
+             * 向聊天区添加一条消息
+             * @param {string} content - 消息内容
+             * @param {string} sender - 发送者 ('user' 或 'ai')
+             */
+            addMessage(content, sender) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${sender}-message`;
+                
+                const modelTag = sender === 'ai' ? `<span class="model-tag">${this.getModelDisplayName()}</span>` : '';
+                
+                messageDiv.innerHTML = `
+                    <div class="message-content">
+                        ${this.escapeHtml(content)}
+                        ${modelTag}
+                    </div>
+                    <div class="timestamp ${sender === 'ai' ? 'ai-timestamp' : ''}">${this.getCurrentTime()}</div>
+                `;
+                
+                this.chatMessages.appendChild(messageDiv);
+                this.scrollToBottom();
+            }
+            
+            /**
+             * 转义HTML特殊字符，防止XSS攻击
+             * @param {string} text - 原始文本
+             * @returns {string} 转义后的安全HTML
+             */
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text; // 将文本设置为节点的文本内容，自动转义
+                return div.innerHTML; // 返回节点的HTML，即转义后的字符串
+            }
+            
+            /**
+             * 在聊天区显示一条错误消息
+             * @param {string} message - 错误信息
+             */
+            showError(message) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error-message';
+                errorDiv.textContent = message;
+                this.chatMessages.appendChild(errorDiv);
+                this.scrollToBottom();
+                
+                // 5秒后自动移除错误提示
+                setTimeout(() => {
+                    errorDiv.remove();
+                }, 5000);
+            }
+            
+            /**
+             * 更新API连接状态指示器
+             * @param {string} status - 状态类名 ('connected', 'connecting', 'error')
+             * @param {string} text - 状态文本
+             */
+            setAPIStatus(status, text) {
+                this.statusDot.className = `status-dot ${status}`;
+                this.statusText.textContent = text;
+            }
+            
+            /**
+             * 将聊天区滚动到底部
+             */
+            scrollToBottom() {
+                // 使用setTimeout确保在DOM更新后再执行滚动
+                setTimeout(() => {
+                    this.chatMessages.scrollTop = this.chatMessages.scrollHeight;
+                }, 100);
+            }
+        }
+        
+        // --- 应用入口 ---
+        // 当DOM内容完全加载后，创建AIChat实例，启动应用
+        document.addEventListener('DOMContentLoaded', () => {
+            new AIChat();
+        });
+    </script>
+</body>
+</html>
